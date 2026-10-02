@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jelajah IPA: Kuis Cerdas</title>
     <style>
-        /* Desain Tampilan Game */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -58,16 +57,27 @@
 
         .hidden { display: none; }
         
-        .score-board {
-            font-size: 1.2rem;
+        .info-board {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
             font-weight: bold;
             color: #4a00e0;
             margin-bottom: 20px;
         }
 
+        .timer { color: #e74c3c; }
+        /* Animasi berkedip saat waktu tinggal sedikit */
+        .timer.danger { animation: pulse 0.5s infinite alternate; }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); color: #c0392b; }
+        }
+
         .progress-bar {
             width: 100%;
-            height: 10px;
+            height: 8px;
             background: #ddd;
             border-radius: 5px;
             margin-bottom: 20px;
@@ -87,16 +97,21 @@
     <div class="game-container">
         <!-- Halaman Awal -->
         <div id="start-screen">
-            <h1> Jelajah IPA</h1>
+            <h1>🔬 Jelajah IPA</h1>
             <p>Uji pengetahuanmu tentang Sains Alam!</p>
-            <p>Siap menjadi ilmuwan cilik?</p>
+            <p>⏱️ Kamu punya <b>1 MENIT</b> untuk setiap soal.</p>
             <button class="btn" onclick="startGame()">Mulai Petualangan 🚀</button>
         </div>
 
         <!-- Halaman Kuis -->
         <div id="quiz-screen" class="hidden">
             <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-            <div class="score-board">Skor: <span id="score">0</span></div>
+            
+            <div class="info-board">
+                <div>Skor: <span id="score">0</span></div>
+                <div class="timer" id="timer-display">⏱️ 60s</div>
+            </div>
+            
             <h2 id="question-text">Pertanyaan disini...</h2>
             <div id="options-container">
                 <!-- Tombol jawaban akan muncul disini -->
@@ -105,8 +120,8 @@
 
         <!-- Halaman Hasil -->
         <div id="result-screen" class="hidden">
-            <h1> Selesai!</h1>
-            <p>Kamu mendapatkan skor:</p>
+            <h1>🏁 Selesai!</h1>
+            <p>Kamu mendapatkan skor akhir:</p>
             <h2 style="font-size: 3rem; color: #4a00e0;" id="final-score">0</h2>
             <p id="feedback-text">Keren banget!</p>
             <button class="btn" onclick="restartGame()">Main Lagi 🔄</button>
@@ -119,7 +134,7 @@
             {
                 q: "Planet terbesar di tata surya kita adalah...",
                 options: ["Bumi", "Mars", "Jupiter", "Saturnus"],
-                answer: 2 // Index jawaban benar (Jupiter)
+                answer: 2 
             },
             {
                 q: "Proses tumbuhan membuat makanan sendiri dengan bantuan cahaya matahari disebut...",
@@ -146,6 +161,8 @@
         let currentQuestionIndex = 0;
         let score = 0;
         let canAnswer = false;
+        let timeLeft = 250; // Waktu mulai 60 detik
+        let timerInterval;
 
         // Fungsi Memulai Game
         function startGame() {
@@ -158,13 +175,13 @@
             showQuestion();
         }
 
-        // Menampilkan Pertanyaan
+        // Menampilkan Pertanyaan & Reset Timer
         function showQuestion() {
             const qData = questions[currentQuestionIndex];
             document.getElementById('question-text').innerText = qData.q;
             
             const optionsDiv = document.getElementById('options-container');
-            optionsDiv.innerHTML = ''; // Kosongkan opsi lama
+            optionsDiv.innerHTML = ''; 
 
             // Update Progress Bar
             const progressPercent = ((currentQuestionIndex) / questions.length) * 100;
@@ -180,35 +197,84 @@
             });
 
             canAnswer = true;
+            resetTimer(); // Mulai hitung mundur 60 detik
+        }
+
+        // Logika Timer
+        function resetTimer() {
+            clearInterval(timerInterval); // Hentikan timer sebelumnya jika ada
+            timeLeft = 60; // Set ulang ke 60 detik
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut(); // Waktu habis
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const timerEl = document.getElementById('timer-display');
+            timerEl.innerText = `⏱️ ${timeLeft}s`;
+            
+            // Efek merah berkedip jika waktu tinggal 10 detik atau kurang
+            if (timeLeft <= 10) {
+                timerEl.classList.add('danger');
+            } else {
+                timerEl.classList.remove('danger');
+            }
+        }
+
+        // Jika waktu habis
+        function handleTimeOut() {
+            if (!canAnswer) return;
+            canAnswer = false;
+            
+            const correctIndex = questions[currentQuestionIndex].answer;
+            const allButtons = document.querySelectorAll('.option-btn');
+            
+            // Tunjukkan jawaban yang benar agar pemain bisa belajar
+            allButtons[correctIndex].classList.add('correct');
+            
+            setTimeout(() => {
+                nextQuestion();
+            }, 1500);
         }
 
         // Cek Jawaban
         function checkAnswer(selectedIndex, btnElement) {
-            if (!canAnswer) return; // Mencegah klik ganda
+            if (!canAnswer) return; 
             canAnswer = false;
+            clearInterval(timerInterval); // Hentikan timer segera setelah menjawab
 
             const correctIndex = questions[currentQuestionIndex].answer;
             const allButtons = document.querySelectorAll('.option-btn');
 
             if (selectedIndex === correctIndex) {
                 btnElement.classList.add('correct');
-                score += 20; // 100 dibagi 5 soal = 20 poin per soal
+                score += 20; 
                 updateScore();
             } else {
                 btnElement.classList.add('wrong');
-                // Tunjukkan jawaban yang benar
                 allButtons[correctIndex].classList.add('correct');
             }
 
-            // Lanjut ke soal berikutnya setelah 1 detik
             setTimeout(() => {
-                currentQuestionIndex++;
-                if (currentQuestionIndex < questions.length) {
-                    showQuestion();
-                } else {
-                    endGame();
-                }
+                nextQuestion();
             }, 1200);
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                showQuestion();
+            } else {
+                endGame();
+            }
         }
 
         function updateScore() {
@@ -217,12 +283,13 @@
 
         // Game Selesai
         function endGame() {
+            clearInterval(timerInterval);
             document.getElementById('quiz-screen').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
             document.getElementById('final-score').innerText = score;
             
             let feedback = "";
-            if (score === 100) feedback = "Sempurna! Kamu Ilmuwan Sejati! ";
+            if (score === 100) feedback = "Sempurna! Kamu Ilmuwan Sejati! 🏆";
             else if (score >= 80) feedback = "Hebat! Pengetahuanmu luas! 🌟";
             else if (score >= 60) feedback = "Bagus! Terus belajar ya! 📚";
             else feedback = "Jangan menyerah, coba lagi! 💪";
